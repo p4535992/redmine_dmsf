@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: redmine
+      POSTGRES_USER: redmine
+      POSTGRES_PASSWORD: redmine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redmine -d redmine"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - redmine-db:/var/lib/postgresql/data
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: "${ONLYOFFICE_JWT_SECRET:-dmsf-onlyoffice-dev-secret}"
+      JWT_HEADER: "Authorization"
+    ports:
+      - "${ONLYOFFICE_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redmine:
+    build:
+      context: ../..
+      dockerfile: docker/testing/Dockerfile
+      args:
+        REDMINE_VERSION: "${REDMINE_VERSION:-7.0.1}"
+    depends_on:
+      db:
+        condition: service_healthy
+      onlyoffice:
+        condition: service_healthy
+    environment:
+      REDMINE_DB_POSTGRES: db
+      REDMINE_DB_DATABASE: redmine
+      REDMINE_DB_USERNAME: redmine
+      REDMINE_DB_PASSWORD: redmine
+      REDMINE_SECRET_KEY_BASE: "${REDMINE_SECRET_KEY_BASE:-dmsf-testing-secret-key-base-change-me}"
+      ONLYOFFICE_PUBLIC_URL: "${ONLYOFFICE_PUBLIC_URL:-http://localhost:8081}"
+      ONLYOFFICE_INTERNAL_URL: "http://onlyoffice"
+      REDMINE_INTERNAL_URL: "http://redmine:3000"
+      ONLYOFFICE_JWT_SECRET: "${ONLYOFFICE_JWT_SECRET:-dmsf-onlyoffice-dev-secret}"
+    ports:
+      - "${REDMINE_PORT:-3000}:3000"
+    volumes:
+      - redmine-files:/usr/src/redmine/files
+
+volumes:
+  redmine-db:
+  redmine-files:
