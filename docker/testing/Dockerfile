@@ -22,6 +22,7 @@ COPY docker/testing/storage.yml /usr/src/redmine/config/storage.yml
 COPY docker/testing/start-redmine-dmsf.sh /usr/local/bin/start-redmine-dmsf
 
 RUN chmod +x /usr/local/bin/start-redmine-dmsf \
-    && bundle install
+    && bundle install \
+    && bin/rails active_storage:install
 
 CMD ["/usr/local/bin/start-redmine-dmsf"]
